@@ -21,14 +21,18 @@
           };
         });
   in {
-    devShells = forEachSupportedSystem ({pkgs}: {
+    devShells = forEachSupportedSystem ({pkgs}: let
+      # ref: https://nixos.org/manual/nixpkgs/unstable/index.html#using-many-sdks-in-a-workflow
+      combinedDotNet = with pkgs.dotnetCorePackages;
+        combinePackages [
+          sdk_6_0_1xx
+          sdk_8_0_1xx
+          sdk_9_0_1xx
+        ];
+    in {
       default = pkgs.mkShell {
         packages = [
-          # ref: https://nixos.org/manual/nixpkgs/unstable/index.html#using-many-sdks-in-a-workflow
-          (with pkgs.dotnetCorePackages; combinePackages [
-            sdk_6_0_1xx
-            sdk_8_0_1xx
-          ])
+          combinedDotNet
 
           pkgs.omnisharp-roslyn
           pkgs.mono
@@ -50,14 +54,14 @@
           ❯ ldd /home/kill-face/code/workflow-armored-core/test/ScratchPad/bin/Debug/net6.0/ScratchPad
         */
         shellHook = ''
-          export DOTNET_ROOT=${pkgs.dotnetCorePackages.sdk_6_0_1xx}/share/dotnet
+          export DOTNET_ROOT=${combinedDotNet}/share/dotnet
           export MSBuildSDKsPath=$DOTNET_ROOT/sdk/6.0.136/Sdks
           export PATH="$DOTNET_ROOT/bin:$PATH"
-          
+
           # Ensure MSBuild knows about Mono
           export MSBuildExtensionsPath=${pkgs.msbuild}/lib/mono/msbuild
           export FrameworkPathOverride=${pkgs.mono}/lib/mono/4.5
-  
+
 
           # Ensure .config directory exists for local tools
           mkdir -p ./.config
