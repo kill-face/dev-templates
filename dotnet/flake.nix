@@ -1,6 +1,9 @@
 {
   description = "A Nix-flake-based .NET development environment";
-  outputs = {nixpkgs}: let
+  outputs = {
+    self,
+    nixpkgs,
+  }: let
     supportedSystems = ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
     forEachSupportedSystem = f:
       nixpkgs.lib.genAttrs supportedSystems (system:
@@ -26,32 +29,55 @@
           sdk_8_0_1xx
           sdk_9_0_1xx
         ];
+
+      # ref: https://nixos.wiki/wiki/DotNET
+      aotDeps = [
+        # Not all of these are listed as dependencies in the wiki, but I was receiving various failures
+        # when compiling against different targets frameworks (8, 9) without all the below.
+        # gcc seems to be a requirement for 8, but not 9.
+        pkgs.zlib
+        pkgs.zlib.dev
+        pkgs.openssl
+        pkgs.icu
+        pkgs.gcc
+        pkgs.stdenv.cc.cc
+        combinedDotNet
+      ];
+
+      toolingDeps = [
+        pkgs.stdenv.cc.cc
+        pkgs.omnisharp-roslyn
+        pkgs.mono
+        pkgs.msbuild
+        pkgs.nuget-to-nix
+      ];
+
+      efCoreDeps = [
+        # Required unicode pkg for dotnet core ef tools to run migrations with localization
+        pkgs.dotnet-ef
+        pkgs.icu60
+      ];
+
+      allDeps = aotDeps ++ toolingDeps ++ efCoreDeps ++ [combinedDotNet];
     in {
       default = pkgs.mkShell {
-        packages = [
-          combinedDotNet
+        packages = allDeps;
+        nativeBuildInputs = [] ++ aotDeps;
 
-          pkgs.omnisharp-roslyn
-          pkgs.mono
-          pkgs.msbuild
-          pkgs.dotnet-ef
-          pkgs.nuget-to-nix
-
-          # Debugging / running fails without this.
-          pkgs.stdenv.cc.cc.lib
-
-          # Required for AOT compilation
-          pkgs.zlib
-          pkgs.zlib-ng
-
-          # Required unicode pkg for dotnet core ef tools to run migrations with localization
-          pkgs.icu60
-        ];
+        NIX_LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+          []
+          ++ aotDeps
+        );
+        LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (
+          []
+          ++ aotDeps
+        );
+        NIX_LD = "${pkgs.stdenv.cc.libc_bin}/bin/ld.so";
 
         /*
         Dynamically linked packages have to be added to LD_LIBRARY_PATH.
         When running a .NET project, you can use the below command template to determine if a link is missing:
-          ❯ ldd /path/to/project/bin/Debug/framwork_target/Project
+          ❯ ldd executable/file/path
         */
         shellHook = ''
           export DOTNET_ROOT=${combinedDotNet}/share/dotnet
@@ -61,21 +87,20 @@
           export MSBuildExtensionsPath=${pkgs.msbuild}/lib/mono/msbuild
           export FrameworkPathOverride=${pkgs.mono}/lib/mono/4.5
 
+          echo "${pkgs.stdenv.cc.libc_bin}/bin/ld.so"
+
           # Ensure .config directory exists for local tools
           mkdir -p ./.config
 
-          # Add local tools to PATH
-          export PATH="$PWD/.config/tools:$PATH"
-          export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.zlib}/lib:${pkgs.icu}/lib:$LD_LIBRARY_PATH"
-
-          ##########################
-          # Optional dotnet tooling
-          ##########################
-          # Uncomment to install dotnet-ef locally if not present
+          # Install dotnet-ef locally if not present
           # if [ ! -f ".config/dotnet-tools.json" ]; then
           #   dotnet new tool-manifest
           #   dotnet tool install dotnet-ef
+
+          #   # Add local tools to PATH
+          #   export PATH="$PWD/.config/tools:$PATH"
           # fi
+
         '';
       };
     });
