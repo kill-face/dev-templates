@@ -47,6 +47,7 @@
       toolingDeps = [
         pkgs.stdenv.cc.cc
         pkgs.omnisharp-roslyn
+        pkgs.fantomas
         pkgs.mono
         pkgs.msbuild
         pkgs.nuget-to-nix
