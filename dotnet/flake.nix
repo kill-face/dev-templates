@@ -1,5 +1,6 @@
 {
   description = "A Nix-flake-based .NET development environment";
+
   outputs = {
     self,
     nixpkgs,
@@ -94,13 +95,13 @@
           mkdir -p ./.config
 
           # Install dotnet-ef locally if not present
-          # if [ ! -f ".config/dotnet-tools.json" ]; then
-          #   dotnet new tool-manifest
-          #   dotnet tool install dotnet-ef
+          if [ ! -f ".config/dotnet-tools.json" ]; then
+            dotnet new tool-manifest
+            dotnet tool install fantomas
 
-          #   # Add local tools to PATH
-          #   export PATH="$PWD/.config/tools:$PATH"
-          # fi
+            # Add local tools to PATH
+            export PATH="$PWD/.config/tools:$PATH"
+          fi
 
         '';
       };
