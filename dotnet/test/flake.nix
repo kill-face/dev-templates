@@ -124,7 +124,7 @@
           export MSBuildExtensionsPath=${pkgs.msbuild}/lib/mono/msbuild
           export FrameworkPathOverride=${pkgs.mono}/lib/mono/4.5
 
-
+          echo "${pkgs.stdenv.cc.libc_bin}/bin/ld.so"
 
           # Ensure .config directory exists for local tools
           mkdir -p ./.config
