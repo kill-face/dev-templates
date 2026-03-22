@@ -124,14 +124,12 @@
           export MSBuildExtensionsPath=${pkgs.msbuild}/lib/mono/msbuild
           export FrameworkPathOverride=${pkgs.mono}/lib/mono/4.5
 
-          echo "${pkgs.stdenv.cc.libc_bin}/bin/ld.so"
-
-          # Ensure .config directory exists for local tools
-          mkdir -p ./.config
-
           # Ensure dotnet tool manifest exists, then restore
-          if [ ! -f "dotnet-tools.json" ]; then
-            dotnet new tool-manifest
+          if [ ! -f "./.config/dotnet-tools.json" ]; then
+            # Ensure .config directory exists for local tools
+            mkdir -p ./.config
+
+            dotnet new tool-manifest --output .config
             ${nixpkgs.lib.optionalString (builtins.elem "fsharp" languages) "dotnet tool install fantomas"}
           fi
           dotnet tool restore
