@@ -5,6 +5,7 @@
     self,
     nixpkgs,
   }: let
+    ### ! Update these yearly !
     dotnetEol = ["6" "7"];
     dotnetActive = ["8" "9" "10"];
     dotnetPreview = ["11"];
@@ -17,6 +18,9 @@
 
     # languages used in the environment ("fsharp" or "csharp")
     languages = ["fsharp" "csharp"];
+
+    # installs fable & node.js
+    useFable = false;
 
     #######################################
     ### Insecure package whitelisting
@@ -95,7 +99,23 @@
         # pkgs.dotnet-ef
       ];
 
-      allDeps = aotDeps ++ toolingDeps ++ efCoreDeps ++ [combinedDotNet] ++ fsharpToolingDeps ++ csharpToolingDeps;
+      userPackages = [
+        pkgs.claude-code
+      ];
+
+      fableDeps = nixpkgs.lib.optionals useFable [
+        pkgs.nodejs
+      ];
+
+      allDeps =
+        aotDeps
+        ++ toolingDeps
+        ++ efCoreDeps
+        ++ [combinedDotNet]
+        ++ fsharpToolingDeps
+        ++ csharpToolingDeps
+        ++ userPackages
+        ++ fableDeps;
     in {
       default = pkgs.mkShell {
         packages = allDeps;
@@ -120,9 +140,10 @@
           export DOTNET_ROOT=${combinedDotNet}/share/dotnet
           export PATH="$DOTNET_ROOT/bin:$PATH"
 
+          # ! .NET 10 seems not to require this? !
           # Ensure MSBuild knows about Mono
-          export MSBuildExtensionsPath=${pkgs.msbuild}/lib/mono/msbuild
-          export FrameworkPathOverride=${pkgs.mono}/lib/mono/4.5
+          # export MSBuildExtensionsPath=${pkgs.msbuild}/lib/mono/msbuild
+          # export FrameworkPathOverride=${pkgs.mono}/lib/mono/4.5
 
           # Ensure dotnet tool manifest exists, then restore
           if [ ! -f "./.config/dotnet-tools.json" ]; then
@@ -131,6 +152,7 @@
 
             dotnet new tool-manifest --output .config
             ${nixpkgs.lib.optionalString (builtins.elem "fsharp" languages) "dotnet tool install fantomas"}
+            ${nixpkgs.lib.optionalString useFable "dotnet tool install fable"}
           fi
           dotnet tool restore
           export PATH="$PWD/.config/tools:$PATH"
